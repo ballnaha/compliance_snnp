@@ -28,7 +28,7 @@ export async function GET(request: Request) {
                 document_receive, document_state, objective, file, remark,
                 expected_datetime, reply, inactive, created_at, updated_at
             FROM categories_form
-            WHERE ${field} = ?
+            WHERE ${field} = ? AND (inactive IS NULL OR inactive != 'on')
             ORDER BY id DESC
         `, userId);
 

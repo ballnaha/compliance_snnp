@@ -31,7 +31,8 @@ import {
     MenuItem,
     OutlinedInput,
     Checkbox,
-    ListItemText
+    ListItemText,
+    Tooltip
 } from '@mui/material';
 import {
     SearchNormal1,
@@ -40,7 +41,8 @@ import {
     Trash,
     ProfileCircle,
     Building4,
-    Verify
+    Verify,
+    Sms
 } from 'iconsax-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -85,6 +87,8 @@ export default function UsersPage() {
     const [factories, setFactories] = useState<StatusMaster[]>([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
+    const [emailLoading, setEmailLoading] = useState(false);
+    const [userEmailLoading, setUserEmailLoading] = useState<Record<string, boolean>>({});
 
     // Dialog state
     const [open, setOpen] = useState(false);
@@ -153,6 +157,54 @@ export default function UsersPage() {
             showSnackbar('Failed to load users', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleTestEmail = async (userId?: string) => {
+        const ok = await confirm({
+            title: userId ? 'ยืนยันการส่ง Email รายบุคคล' : 'ยืนยันการส่ง Email ทดสอบ (ทั้งหมด)',
+            message: userId
+                ? 'ระบบจะส่ง Email แจ้งเตือนไปยังผู้ใช้รายนี้ (หากมีรายการที่ใกล้หมดอายุ)'
+                : 'ระบบจะส่ง Email แจ้งเตือนไปยังผู้รับผิดชอบและผู้จัดเตรียมเอกสารทุกคนที่มีรายการใกล้หมดอายุ คุณต้องการดำเนินการต่อหรือไม่?',
+            confirmText: 'ส่ง Email',
+            severity: 'info'
+        });
+
+        if (!ok) return;
+
+        try {
+            if (userId) {
+                setUserEmailLoading(prev => ({ ...prev, [userId]: true }));
+            } else {
+                setEmailLoading(true);
+            }
+
+            const res = await fetch('/api/notifications/test-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                if (data.results && data.results.length > 0) {
+                    showSnackbar('ส่ง email แจ้งเตือนเรียบร้อยแล้ว', 'success');
+                } else if (data.message) {
+                    showSnackbar(data.message, 'info');
+                } else {
+                    showSnackbar('ไม่พบรายการที่ต้องแจ้งเตือนสำหรับผู้ใช้นี้', 'info');
+                }
+            } else {
+                showSnackbar(data.error || 'เกิดข้อผิดพลาดในการส่ง email', 'error');
+            }
+        } catch (err) {
+            showSnackbar('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+        } finally {
+            if (userId) {
+                setUserEmailLoading(prev => ({ ...prev, [userId]: false }));
+            } else {
+                setEmailLoading(false);
+            }
         }
     };
 
@@ -291,15 +343,26 @@ export default function UsersPage() {
                         </Typography>
                     </Box>
                     {canEdit && (
-                        <Button
-                            variant="contained"
-                            startIcon={<AddCircle variant="Bold" color="white" />}
-                            size="large"
-                            onClick={() => handleOpen()}
-                            sx={{ borderRadius: 2, px: 3 }}
-                        >
-                            เพิ่มผู้ใช้งาน
-                        </Button>
+                        <Stack direction="row" spacing={2}>
+                            <Button
+                                variant="outlined"
+                                startIcon={emailLoading ? <CircularProgress size={20} /> : <Sms variant="Bold" color="#10b981" />}
+                                onClick={() => handleTestEmail()}
+                                disabled={emailLoading}
+                                sx={{ borderRadius: 2, px: 3 }}
+                            >
+                                ทดสอบส่ง Email
+                            </Button>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddCircle variant="Bold" color="white" />}
+                                size="large"
+                                onClick={() => handleOpen()}
+                                sx={{ borderRadius: 2, px: 3 }}
+                            >
+                                เพิ่มผู้ใช้งาน
+                            </Button>
+                        </Stack>
                     )}
                 </Stack>
 
@@ -417,11 +480,21 @@ export default function UsersPage() {
                                             {canEdit && (
                                                 <TableCell sx={{ textAlign: 'right' }}>
                                                     <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                        <Tooltip title="ส่ง Email แจ้งเตือนรายบุคคล">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleTestEmail(user.id)}
+                                                                disabled={userEmailLoading[user.id]}
+                                                                sx={{ color: '#10b981', bgcolor: '#ecfdf5', '&:hover': { bgcolor: '#10b981', color: 'white' } }}
+                                                            >
+                                                                {userEmailLoading[user.id] ? <CircularProgress size={18} /> : <Sms size="18" variant="Bold" color="#10b981" />}
+                                                            </IconButton>
+                                                        </Tooltip>
                                                         <IconButton size="small" onClick={() => handleOpen(user)} sx={{ color: '#6366f1', bgcolor: '#eef2ff', '&:hover': { bgcolor: '#6366f1', color: 'white' } }}>
-                                                            <Edit2 size="18" variant="Bold" color="currentColor" />
+                                                            <Edit2 size="18" variant="Bold" color="#6366f1" />
                                                         </IconButton>
                                                         <IconButton size="small" onClick={() => handleDelete(user.id)} sx={{ color: '#ef4444', bgcolor: '#fef2f2', '&:hover': { bgcolor: '#ef4444', color: 'white' } }}>
-                                                            <Trash size="18" variant="Bold" color="currentColor" />
+                                                            <Trash size="18" variant="Bold" color="#ef4444" />
                                                         </IconButton>
                                                     </Stack>
                                                 </TableCell>

@@ -5,8 +5,17 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const type = searchParams.get('type');
+        const factoriesParam = searchParams.get('factories');
 
-        const whereClause = type ? { type } : {};
+        let whereClause: any = type ? { type } : {};
+
+        if (factoriesParam) {
+            const factoryCodes = factoriesParam.split(',').map(f => f.trim()).filter(Boolean);
+            whereClause = {
+                ...whereClause,
+                code_id: { in: factoryCodes }
+            };
+        }
 
         const data = await prisma.status_master.findMany({
             where: whereClause,

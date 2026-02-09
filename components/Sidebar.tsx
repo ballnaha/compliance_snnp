@@ -33,28 +33,27 @@ const MENU_STRUCTURE = [
         title: 'เมนูหลัก',
         items: [
             { text: 'แดชบอร์ด', icon: Element3, path: '/', color: '#6366f1', viewAllowed: true },
-            { text: 'หมวดหมู่', icon: Folder2, path: '/categories', color: '#f59e0b', viewAllowed: true },
-            { text: 'เอกสาร Compliance', icon: DocumentText, path: '/compliance', color: '#10b981', viewAllowed: true },
+            { text: 'เอกสาร Compliance', icon: DocumentText, path: '/compliance', color: '#10b981', viewAllowed: false },
         ]
     },
     {
         title: 'งานของฉัน',
         items: [
-            { text: 'งานที่รับผิดชอบ', icon: TaskSquare, path: '/my-activities', color: '#0ea5e9', viewAllowed: true },
+            { text: 'ผู้ที่รับผิดชอบ', icon: TaskSquare, path: '/my-activities', color: '#0ea5e9', viewAllowed: true },
             { text: 'ผู้จัดเตรียมเอกสาร', icon: TaskSquare, path: '/my-activities/preparer', color: '#8b5cf6', viewAllowed: true },
         ]
     },
     {
-        title: 'รายงานและข้อมูล',
+        title: 'รายงาน',
         items: [
-            { text: 'รายงาน Report', icon: Diagram, path: '/compliance/report', color: '#ef4444', viewAllowed: true },
-            { text: 'ประวัติกิจกรรม', icon: Clock, path: '/logs', color: '#64748b', viewAllowed: true },
+            { text: 'รายงาน Report', icon: Diagram, path: '/compliance/report', color: '#ef4444', viewAllowed: false },
         ]
     },
     {
         title: 'ตั้งค่าระบบ',
         items: [
             { text: 'จัดการผู้ใช้งาน', icon: ProfileCircle, path: '/users', color: '#8b5cf6', viewAllowed: false },
+            { text: 'หมวดหมู่', icon: Folder2, path: '/categories', color: '#f59e0b', viewAllowed: false },
         ]
     }
 ];
@@ -99,23 +98,76 @@ export default function Sidebar({ open, onClose, variant = 'permanent' }: Sideba
     const loadingSkeleton = (
         <Box sx={{
             width: 280,
+            bgcolor: '#0f172a',
             display: 'flex',
             flexDirection: 'column',
-            p: 3,
             height: '100%',
+            p: 0,
         }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" mb={4}>
-                <Skeleton variant="rounded" width={42} height={42} sx={{ borderRadius: 3 }} />
-                <Skeleton variant="text" width={120} height={28} />
-            </Stack>
-            <Typography variant="overline" sx={{ px: 1.5, mb: 1, color: 'text.disabled' }}>
-                <Skeleton width={60} />
-            </Typography>
-            {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} variant="rounded" height={44} sx={{ borderRadius: 2.5, mb: 0.8 }} />
-            ))}
-            <Box sx={{ mt: 'auto' }}>
-                <Skeleton variant="rounded" height={64} sx={{ borderRadius: 3 }} />
+            {/* Logo Skeleton */}
+            <Box sx={{ px: 3, pt: 4, pb: 2.5 }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Skeleton
+                        variant="rounded"
+                        width={40}
+                        height={40}
+                        sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.05)' }}
+                    />
+                    <Box>
+                        <Skeleton variant="text" width={80} height={24} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />
+                        <Skeleton variant="text" width={60} height={16} sx={{ bgcolor: 'rgba(255,255,255,0.03)' }} />
+                    </Box>
+                </Stack>
+            </Box>
+
+            <Box sx={{ mx: 3, mb: 3, borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.05)' }} />
+
+            {/* Menu Groups Skeleton */}
+            <Box sx={{ px: 3, flexGrow: 1 }}>
+                {[1, 2].map(group => (
+                    <Box key={group} sx={{ mb: 4 }}>
+                        <Skeleton
+                            variant="text"
+                            width={100}
+                            height={20}
+                            sx={{ mb: 2, bgcolor: 'rgba(255,255,255,0.03)' }}
+                        />
+                        <Stack spacing={1.5}>
+                            {[1, 2, 3].map(item => (
+                                <Box key={item} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Skeleton
+                                        variant="circular"
+                                        width={20}
+                                        height={20}
+                                        sx={{ bgcolor: 'rgba(255,255,255,0.05)' }}
+                                    />
+                                    <Skeleton
+                                        variant="rounded"
+                                        width="70%"
+                                        height={24}
+                                        sx={{ borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.04)' }}
+                                    />
+                                </Box>
+                            ))}
+                        </Stack>
+                    </Box>
+                ))}
+            </Box>
+
+            {/* Bottom Profile Skeleton */}
+            <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.15)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" p={1.2}>
+                    <Skeleton
+                        variant="circular"
+                        width={36}
+                        height={36}
+                        sx={{ bgcolor: 'rgba(255,255,255,0.05)' }}
+                    />
+                    <Box sx={{ flex: 1 }}>
+                        <Skeleton variant="text" width="60%" height={20} sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} />
+                        <Skeleton variant="text" width="40%" height={16} sx={{ bgcolor: 'rgba(255,255,255,0.03)' }} />
+                    </Box>
+                </Stack>
             </Box>
         </Box>
     );

@@ -26,15 +26,26 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
 
     return (
         <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-            {/* Desktop Sidebar - Toggleable */}
+            {/* Permanent Sidebar (Desktop) */}
             <Box sx={{
                 display: { xs: 'none', md: 'block' },
                 width: open ? 280 : 0,
                 transition: 'width 0.3s ease',
-                overflow: 'hidden',
-                flexShrink: 0
+                flexShrink: 0,
+                position: 'relative'
             }}>
-                <Sidebar variant="permanent" />
+                <Box sx={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: open ? 280 : 0,
+                    height: '100vh',
+                    transition: 'width 0.3s ease',
+                    overflow: 'hidden',
+                    zIndex: 1200
+                }}>
+                    <Sidebar variant="permanent" />
+                </Box>
             </Box>
 
             {/* Mobile Sidebar */}

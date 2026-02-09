@@ -204,20 +204,42 @@ export async function GET(request: Request) {
             // Get All
             const catIdParam = searchParams.get("cat_id");
             const factoriesParam = searchParams.get("factories");
-            // Use raw query to handle invalid datetime values (0000-00-00)
+            const daysParam = searchParams.get("days"); // New: Support filtering by days until expiry
+            const showInactive = searchParams.get("show_inactive") === 'true';
+
             let whereParts: string[] = [];
             let params: any[] = [];
+
+            // 1. Filter Inactive (Like: (inactive is null or inactive = "off"))
+            if (!showInactive) {
+                whereParts.push("(inactive IS NULL OR inactive != 'on')");
+            }
+
+            // 2. Filter by Category (Like: cat_name = 12)
             if (catIdParam) {
                 const catIds = catIdParam.split(',').map(id => id.trim()).filter(Boolean);
                 whereParts.push(`cat_name IN (${catIds.map(() => '?').join(',')})`);
                 params.push(...catIds);
             }
+
+            // 3. Filter by Factory Permissions (Like: join users_factory and where user_id = ...)
             if (factoriesParam) {
                 const factoryIds = factoriesParam.split(',').map(id => id.trim()).filter(Boolean);
                 whereParts.push(`factory IN (${factoryIds.map(() => '?').join(',')})`);
                 params.push(...factoryIds);
             }
+
+            // 4. DateDiff Calculation (Like: datediff(expire_datetime,now()) <= 90)
+            if (daysParam) {
+                const days = parseInt(daysParam);
+                if (!isNaN(days)) {
+                    whereParts.push(`DATEDIFF(expire_datetime, NOW()) >= 0 AND DATEDIFF(expire_datetime, NOW()) <= ?`);
+                    params.push(days);
+                }
+            }
+
             const whereSQL = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+
             const items: any[] = await prisma.$queryRawUnsafe(`
                 SELECT id, cat_name, cat_folder, license, plan, factory, license_no,
                     IF(CAST(allow_datetime AS CHAR) = '0000-00-00' OR allow_datetime IS NULL, NULL, allow_datetime) as allow_datetime,

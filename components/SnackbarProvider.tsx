@@ -15,7 +15,7 @@ import {
     Box,
     Stack
 } from '@mui/material';
-import { Trash, Danger } from 'iconsax-react';
+import { Trash, Danger, Sms } from 'iconsax-react';
 
 interface ConfirmOptions {
     title: string;
@@ -126,14 +126,16 @@ export const SnackbarProvider = ({ children }: { children: ReactNode }) => {
                         <Box sx={{
                             p: 2,
                             borderRadius: '50%',
-                            bgcolor: confirmOptions.severity === 'error' ? 'error.lighter' : 'warning.lighter',
-                            color: confirmOptions.severity === 'error' ? 'error.main' : 'warning.main',
+                            bgcolor: confirmOptions.severity === 'error' ? 'error.lighter' : (confirmOptions.severity === 'info' ? 'primary.lighter' : 'warning.lighter'),
+                            color: confirmOptions.severity === 'error' ? 'error.main' : (confirmOptions.severity === 'info' ? 'primary.main' : 'warning.main'),
                             display: 'flex'
                         }}>
                             {confirmOptions.severity === 'error' ? (
-                                <Trash variant="Bold" size="32" />
+                                <Trash variant="Bold" size="32" color="currentColor" />
+                            ) : confirmOptions.severity === 'info' ? (
+                                <Sms variant="Bold" size="32" color="currentColor" />
                             ) : (
-                                <Danger variant="Bold" size="32" />
+                                <Danger variant="Bold" size="32" color="currentColor" />
                             )}
                         </Box>
                         <Box>

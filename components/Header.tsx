@@ -82,15 +82,6 @@ export default function Header({ onMenuClick, title = "ระบบจัดก�
                 </Box>
 
                 <Stack direction="row" spacing={1} alignItems="center">
-                    <IconButton sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                        <SearchNormal1 size="20" color="#6366f1" />
-                    </IconButton>
-
-                    <IconButton sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                        <Badge badgeContent={4} color="error" variant="dot">
-                            <Notification size="20" color="#f59e0b" />
-                        </Badge>
-                    </IconButton>
 
                     {isLoading ? (
                         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ ml: 1 }}>
@@ -180,19 +171,7 @@ export default function Header({ onMenuClick, title = "ระบบจัดก�
                             </Box>
                         </Box>
                         <Divider />
-                        <MenuItem onClick={handleMenuClose} sx={{ py: 1.5, borderRadius: 2, mx: 1 }}>
-                            <ListItemIcon>
-                                <ProfileCircle size="20" color="#6366f1" />
-                            </ListItemIcon>
-                            โปรไฟล์ของฉัน
-                        </MenuItem>
-                        <MenuItem onClick={handleMenuClose} sx={{ py: 1.5, borderRadius: 2, mx: 1 }}>
-                            <ListItemIcon>
-                                <Setting2 size="20" color="#6366f1" />
-                            </ListItemIcon>
-                            ตั้งค่าบัญชี
-                        </MenuItem>
-                        <Divider />
+
                         <MenuItem onClick={handleLogout} sx={{ py: 1.5, borderRadius: 2, mx: 1, color: 'error.main' }}>
                             <ListItemIcon>
                                 <Logout size="20" color="#ef4444" />

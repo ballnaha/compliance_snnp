@@ -27,7 +27,8 @@ import {
     FormControl,
     InputLabel,
     Select,
-    MenuItem
+    MenuItem,
+    Grid
 } from '@mui/material';
 import {
     SearchNormal1,
@@ -35,7 +36,8 @@ import {
     ArrowDown2,
     ArrowUp2,
     TaskSquare,
-    Filter
+    Filter,
+    TickCircle
 } from 'iconsax-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useSession } from 'next-auth/react';
@@ -82,22 +84,70 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
     const [factories, setFactories] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedFactory, setSelectedFactory] = useState('all');
+    const [expiryFilter, setExpiryFilter] = useState<'all' | 'expired' | '1month' | '2month' | '3month'>('all');
+
+    const baseFiltered = compliances.filter(item => {
+        const matchesSearch = !search || (
+            item.license?.toLowerCase().includes(search.toLowerCase()) ||
+            item.cat_name?.toLowerCase().includes(search.toLowerCase()) ||
+            item.license_no?.toLowerCase().includes(search.toLowerCase()) ||
+            item.category_description?.toLowerCase().includes(search.toLowerCase())
+        );
+        const matchesCategory = selectedCategory === 'all' || item.cat_name === selectedCategory;
+        const matchesFactory = selectedFactory === 'all' || item.factory === selectedFactory;
+        return matchesSearch && matchesCategory && matchesFactory;
+    });
+
+    const stats = {
+        expired: baseFiltered.filter(c => c.expire_datetime && dayjs(c.expire_datetime).isBefore(dayjs(), 'day')).length,
+        oneMonth: baseFiltered.filter(c => {
+            if (!c.expire_datetime) return false;
+            const diff = dayjs(c.expire_datetime).diff(dayjs(), 'day');
+            return diff >= 0 && diff <= 30;
+        }).length,
+        twoMonth: baseFiltered.filter(c => {
+            if (!c.expire_datetime) return false;
+            const diff = dayjs(c.expire_datetime).diff(dayjs(), 'day');
+            return diff >= 0 && diff <= 60;
+        }).length,
+        threeMonth: baseFiltered.filter(c => {
+            if (!c.expire_datetime) return false;
+            const diff = dayjs(c.expire_datetime).diff(dayjs(), 'day');
+            return diff >= 0 && diff <= 90;
+        }).length,
+        all: baseFiltered.length
+    };
 
     useEffect(() => {
-        fetchData();
-        fetchMasters();
-    }, [type, session]);
+        if (session) {
+            fetchData();
+            fetchMasters();
+        }
+    }, [type, !!session]); // Only fetch when type changes or when session first becomes available
 
     const fetchMasters = async () => {
         try {
+            const catIdParam = session?.user && (session.user as any).cat_id ? `?cat_id=${(session.user as any).cat_id}` : '';
+            const factoryParam = session?.user && (session.user as any).factories ? `&factories=${(session.user as any).factories}` : '';
+
             const [catRes, factRes] = await Promise.all([
-                fetch('/api/categories'),
-                fetch('/api/status-master?type=Factory')
+                fetch(`/api/categories${catIdParam}`),
+                fetch(`/api/status-master?type=Factory${factoryParam}`)
             ]);
             if (catRes.ok) setCategories(await catRes.json());
             if (factRes.ok) setFactories(await factRes.json());
         } catch (error) {
             console.error("Fetch masters error:", error);
+        }
+    };
+
+    const getExpiryFilterTitle = () => {
+        switch (expiryFilter) {
+            case 'expired': return 'รายการที่ใบอนุญาตหมดอายุไปแล้ว';
+            case '1month': return 'รายการที่จะหมดอายุภายใน 1 เดือน (0-30 วัน)';
+            case '2month': return 'รายการที่จะหมดอายุภายใน 2 เดือน (0-60 วัน)';
+            case '3month': return 'รายการที่จะหมดอายุภายใน 3 เดือน (0-90 วัน)';
+            default: return '';
         }
     };
 
@@ -118,15 +168,30 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
     };
 
     const filteredCompliances = compliances.filter(item => {
-        const matchesSearch = item.license?.toLowerCase().includes(search.toLowerCase()) ||
+        const matchesSearch = !search || (
+            item.license?.toLowerCase().includes(search.toLowerCase()) ||
             item.cat_name?.toLowerCase().includes(search.toLowerCase()) ||
             item.license_no?.toLowerCase().includes(search.toLowerCase()) ||
-            item.category_description?.toLowerCase().includes(search.toLowerCase());
+            item.category_description?.toLowerCase().includes(search.toLowerCase())
+        );
 
         const matchesCategory = selectedCategory === 'all' || item.cat_name === selectedCategory;
         const matchesFactory = selectedFactory === 'all' || item.factory === selectedFactory;
 
-        return matchesSearch && matchesCategory && matchesFactory;
+        let matchesExpiry = true;
+        const diff = item.expire_datetime ? dayjs(item.expire_datetime).diff(dayjs(), 'day') : null;
+
+        if (expiryFilter === 'expired') {
+            matchesExpiry = diff !== null && diff < 0;
+        } else if (expiryFilter === '1month') {
+            matchesExpiry = diff !== null && diff >= 0 && diff <= 30;
+        } else if (expiryFilter === '2month') {
+            matchesExpiry = diff !== null && diff >= 0 && diff <= 60;
+        } else if (expiryFilter === '3month') {
+            matchesExpiry = diff !== null && diff >= 0 && diff <= 90;
+        }
+
+        return matchesSearch && matchesCategory && matchesFactory && matchesExpiry;
     });
 
     const handleChangePage = (event: unknown, newPage: number) => {
@@ -312,15 +377,75 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
         );
     }
 
+    function StatCard({ title, count, color, filterValue, isSelected, textColor = '#ffffff' }: any) {
+        const isSomeSelected = expiryFilter !== 'all';
+        const effectivelySelected = isSelected || (!isSomeSelected && filterValue === 'all');
+
+        return (
+            <Paper
+                onClick={() => setExpiryFilter(filterValue)}
+                sx={{
+                    p: 3,
+                    bgcolor: color,
+                    color: textColor,
+                    borderRadius: 2.5,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    height: '100%',
+                    border: effectivelySelected ? '3px solid #ffffff' : '3px solid transparent',
+                    transform: effectivelySelected ? 'translateY(-8px) scale(1.02)' : 'none',
+                    boxShadow: effectivelySelected
+                        ? `0 20px 25px -5px ${alpha(color, 0.5)}, 0 10px 10px -5px ${alpha(color, 0.3)}`
+                        : '0 4px 12px rgba(0,0,0,0.05)',
+                    opacity: isSomeSelected && !isSelected ? 0.6 : 1,
+                    '&:hover': {
+                        transform: 'translateY(-8px)',
+                        boxShadow: `0 20px 25px -5px ${alpha(color, 0.4)}`,
+                        opacity: 1
+                    },
+                    '&::before': effectivelySelected ? {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        bgcolor: 'rgba(255, 255, 255, 0.1)',
+                        pointerEvents: 'none'
+                    } : {}
+                }}
+            >
+                {effectivelySelected && (
+                    <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
+                        <TickCircle variant="Bold" size="24" color={textColor} />
+                    </Box>
+                )}
+                <Typography variant="subtitle2" fontWeight="700" sx={{ mb: 2, opacity: 0.9, fontSize: '0.9rem', pr: 4 }}>
+                    {title}
+                </Typography>
+                <Stack direction="row" alignItems="baseline" spacing={1}>
+                    <Typography variant="h4" fontWeight="800">
+                        {count}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 600 }}>
+                        รายการ
+                    </Typography>
+                </Stack>
+            </Paper>
+        );
+    }
+
     return (
-        <DashboardLayout title={type === 'responsible' ? "งานที่รับผิดชอบ" : "ผู้จัดเตรียมเอกสาร"}>
+        <DashboardLayout title={type === 'responsible' ? "ผุ้ที่รับผิดชอบ" : "ผู้จัดเตรียมเอกสาร"}>
             <Container maxWidth="xl" sx={{ p: 0 }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} alignItems="center" justifyContent="space-between" mb={3} spacing={2}>
                     <Box>
                         <Stack direction="row" spacing={1.5} alignItems="center" mb={0.5}>
                             <TaskSquare size="28" variant="Bold" color={theme.palette.primary.main} />
                             <Typography variant="h5" fontWeight="800">
-                                {type === 'responsible' ? "งานที่รับผิดชอบ (Responsible)" : "งานที่จัดเตรียมเอกสาร (Preparer)"}
+                                {type === 'responsible' ? "ผู้ที่รับผิดชอบ (Responsible)" : "ผู้จัดเตรียมเอกสาร (Preparer)"}
                             </Typography>
                         </Stack>
                         <Typography variant="body1" color="text.secondary">
@@ -328,6 +453,51 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
                         </Typography>
                     </Box>
                 </Stack>
+
+                {/* Dashboard Stats Cards */}
+                <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                    gap: 2.5,
+                    mb: 4
+                }}>
+                    <StatCard
+                        title="ใบอนุญาตหมดอายุไปแล้ว"
+                        count={stats.expired}
+                        color="#1e293b"
+                        filterValue="expired"
+                        isSelected={expiryFilter === 'expired'}
+                    />
+                    <StatCard
+                        title="ใบอนุญาตจะหมดอายุในอีก 1 เดือน"
+                        count={stats.oneMonth}
+                        color="#ff0000"
+                        filterValue="1month"
+                        isSelected={expiryFilter === '1month'}
+                    />
+                    <StatCard
+                        title="ใบอนุญาตจะหมดอายุในอีก 2 เดือน"
+                        count={stats.twoMonth}
+                        color="#f59e0b"
+                        filterValue="2month"
+                        isSelected={expiryFilter === '2month'}
+                    />
+                    <StatCard
+                        title="ใบอนุญาตจะหมดอายุในอีก 3 เดือน"
+                        count={stats.threeMonth}
+                        color="#ffff00"
+                        textColor="#000000"
+                        filterValue="3month"
+                        isSelected={expiryFilter === '3month'}
+                    />
+                    <StatCard
+                        title="ใบอนุญาตทั้งหมด"
+                        count={stats.all}
+                        color="#14b8a6"
+                        filterValue="all"
+                        isSelected={expiryFilter === 'all'}
+                    />
+                </Box>
 
                 <Paper sx={{ p: 2.5, borderRadius: 3, mb: 3, boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
                     <Box sx={{
@@ -412,19 +582,44 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
                 <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
                     <Box sx={{
                         px: 2,
-                        py: 1.5,
+                        py: 2,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
-                        bgcolor: alpha(theme.palette.primary.main, 0.02)
+                        bgcolor: alpha(theme.palette.primary.main, 0.02),
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        justifyContent: 'space-between',
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        gap: 1
                     }}>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                            {type === 'responsible' ? 'รายการที่คุณเป็นผู้รับผิดชอบ' : 'รายการที่คุณเป็นผู้จัดเตรียมเอกสาร'}
-                            {' | '}
-                            หน้า {page + 1} จาก {Math.max(1, Math.ceil(filteredCompliances.length / rowsPerPage))}
-                            {filteredCompliances.length > 0 && (
-                                <span> | แสดง {Math.min((page + 1) * rowsPerPage, filteredCompliances.length)} จาก {filteredCompliances.length} รายการ</span>
+                        <Box>
+                            {expiryFilter !== 'all' && (
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                                    <Box sx={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        bgcolor: expiryFilter === 'expired' ? '#1e293b' :
+                                            expiryFilter === '1month' ? '#ff0000' :
+                                                expiryFilter === '2month' ? '#f59e0b' :
+                                                    expiryFilter === '3month' ? '#ffff00' : 'transparent'
+                                    }} />
+                                    <Typography variant="subtitle2" fontWeight="700" color="primary">
+                                        กำลังแสดง: {getExpiryFilterTitle()}
+                                    </Typography>
+                                </Stack>
                             )}
-                        </Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                                {type === 'responsible' ? 'รายการที่คุณเป็นผู้รับผิดชอบ' : 'รายการที่คุณเป็นผู้จัดเตรียมเอกสาร'}
+                                {' | '}
+                                หน้า {page + 1} จาก {Math.max(1, Math.ceil(filteredCompliances.length / rowsPerPage))}
+                            </Typography>
+                        </Box>
+                        {filteredCompliances.length > 0 && (
+                            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 600, bgcolor: alpha(theme.palette.primary.main, 0.1), px: 1.5, py: 0.5, borderRadius: 10 }}>
+                                ทั้งหมด {filteredCompliances.length} รายการ
+                            </Typography>
+                        )}
                     </Box>
                     <TableContainer>
                         <Table>

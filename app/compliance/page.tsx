@@ -156,6 +156,7 @@ export default function CompliancePage() {
             const params = new URLSearchParams();
             if (userCatId) params.set('cat_id', userCatId);
             if (userFactories) params.set('factories', userFactories);
+            params.set('show_inactive', 'true');
             const qs = params.toString();
             const url = qs ? `/api/compliance?${qs}` : '/api/compliance';
             const res = await fetch(url);
@@ -503,15 +504,15 @@ export default function CompliancePage() {
 
                 <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
                     {/* Page Info */}
-                    <Box sx={{ 
-                        px: 2, 
-                        py: 1.5, 
-                        borderBottom: '1px solid', 
+                    <Box sx={{
+                        px: 2,
+                        py: 1.5,
+                        borderBottom: '1px solid',
                         borderColor: 'divider',
                         bgcolor: alpha(theme.palette.primary.main, 0.02)
                     }}>
                         <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                            หน้า {page + 1} จาก {Math.ceil(filteredCompliances.length / rowsPerPage)} 
+                            หน้า {page + 1} จาก {Math.ceil(filteredCompliances.length / rowsPerPage)}
                             {filteredCompliances.length > 0 && (
                                 <span> | แสดง {Math.min((page + 1) * rowsPerPage, filteredCompliances.length)} จาก {filteredCompliances.length} รายการ</span>
                             )}
