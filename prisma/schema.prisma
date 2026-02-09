@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model categories_form {
+  id                 BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  cat_name           String?   @db.VarChar(255)
+  cat_folder         String?   @db.VarChar(250)
+  license            String?   @db.VarChar(255)
+  plan               String?   @db.VarChar(255)
+  factory            String?   @db.VarChar(255)
+  license_no         String?   @db.VarChar(255)
+  allow_datetime     DateTime? @db.Date
+  expire_datetime    DateTime? @db.Date
+  warning_datetime   DateTime? @db.Date
+  department         String?   @db.VarChar(255)
+  status             String?   @db.VarChar(255)
+  responsible_person String?   @db.VarChar(255)
+  document_preparer  String?   @db.VarChar(255)
+  document_receive   String?   @db.VarChar(255)
+  document_state     String?   @db.VarChar(255)
+  objective          String?   @db.Text
+  file               String?   @db.VarChar(255)
+  remark             String?   @db.Text
+  reply              String?   @db.VarChar(250)
+  expected_datetime  String?   @db.VarChar(250)
+  created_at         DateTime? @db.Timestamp(0)
+  updated_at         DateTime? @db.Timestamp(0)
+  inactive           String?   @db.VarChar(50)
+}
+
+model categories_master {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name        String    @db.VarChar(255)
+  cat_folder  String    @db.VarChar(250)
+  description String?   @db.VarChar(255)
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+}
+
+model failed_jobs {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  connection String   @db.Text
+  queue      String   @db.Text
+  payload    String   @db.LongText
+  exception  String   @db.LongText
+  failed_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+model migrations {
+  id        Int    @id @default(autoincrement()) @db.UnsignedInt
+  migration String @db.VarChar(255)
+  batch     Int
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model password_resets {
+  email      String    @db.VarChar(255)
+  token      String    @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+
+  @@index([email], map: "password_resets_email_index")
+  @@ignore
+}
+
+model status_master {
+  id          Int      @id @default(autoincrement())
+  name        String?  @db.VarChar(250)
+  description String?  @db.VarChar(250)
+  code_id     String?  @db.VarChar(250)
+  type        String?  @db.VarChar(250)
+  created_at  DateTime @default(dbgenerated("'0000-00-00 00:00:00'")) @db.Timestamp(0)
+  updated_at  DateTime @default(dbgenerated("'0000-00-00 00:00:00'")) @db.Timestamp(0)
+}
+
+model users {
+  id                BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name              String    @db.VarChar(255)
+  department        String?   @db.VarChar(250)
+  username          String    @unique(map: "username") @db.VarChar(250)
+  role              String?   @db.VarChar(250)
+  cat_id            String?   @db.VarChar(250)
+  status            String?   @db.VarChar(250)
+  email             String    @db.VarChar(255)
+  email_verified_at DateTime? @db.Timestamp(0)
+  password          String    @db.VarChar(255)
+  remember_token    String?   @db.VarChar(100)
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+}
+
+model users_factory {
+  id           Int       @id @default(autoincrement())
+  user_id      Int?
+  factory_name String?   @db.VarChar(250)
+  created_at   DateTime? @db.DateTime(0)
+  updated_at   DateTime? @db.DateTime(0)
+}

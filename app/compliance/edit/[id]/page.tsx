@@ -1,0 +1,864 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import CreateCompliancePage from '@/app/compliance/create/page'; // Reuse the create page component but logic will be slightly different if we want strict reuse, or copy-paste customize.
+import {
+    Container,
+    Typography,
+    Box,
+    Button,
+    Stack,
+    Paper,
+    TextField,
+    MenuItem,
+    FormControl,
+    Select,
+    CircularProgress,
+    Switch,
+    InputLabel,
+    FormControlLabel,
+    Divider,
+    Avatar,
+    useTheme,
+    alpha,
+    List,
+    ListItem,
+    ListItemText,
+    ListItemAvatar,
+    IconButton,
+    Autocomplete,
+    createFilterOptions,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions
+} from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { Dayjs } from 'dayjs';
+import 'dayjs/locale/th';
+import {
+    Save2,
+    CloseCircle,
+    DocumentUpload,
+    InfoCircle,
+    Calendar,
+    Profile2User,
+    FolderOpen,
+    Note,
+    Trash,
+    Document
+} from 'iconsax-react';
+import DashboardLayout from '@/components/DashboardLayout';
+import { useSnackbar } from '@/components/SnackbarProvider';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+
+// Interfaces
+interface StatusMaster {
+    id: number;
+    code_id: string;
+    name: string;
+    type: string;
+}
+
+interface CategoryOption {
+    id: string;
+    name: string;
+    cat_folder: string;
+}
+
+interface UserOption {
+    id: string;
+    name: string;
+}
+
+const SectionHeader = ({ icon: Icon, title, color }: { icon: any, title: string, color: string }) => (
+    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+        <Avatar sx={{ bgcolor: alpha(color, 0.1), color: color, width: 32, height: 32 }}>
+            <Icon size="18" variant="Bold" color={color} />
+        </Avatar>
+        <Typography variant="h6" fontWeight="700">
+            {title}
+        </Typography>
+    </Stack>
+);
+
+const filter = createFilterOptions<string>();
+
+export default function EditCompliancePage() {
+    const { id } = useParams();
+    const { showSnackbar } = useSnackbar();
+    const router = useRouter();
+    const theme = useTheme();
+    const { data: session } = useSession();
+    const userCatId = (session?.user as any)?.cat_id || '';
+    const userFactories = (session?.user as any)?.factories || '';
+    const userRole = (session?.user as any)?.role || '';
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    // Master Data
+    const [departments, setDepartments] = useState<StatusMaster[]>([]);
+    const [factories, setFactories] = useState<StatusMaster[]>([]);
+    const [categories, setCategories] = useState<CategoryOption[]>([]);
+    const [users, setUsers] = useState<UserOption[]>([]);
+    const [states, setStates] = useState<StatusMaster[]>([]);
+    const [receiveOptions, setReceiveOptions] = useState<string[]>([]);
+    const [stateOptions, setStateOptions] = useState<string[]>([]);
+
+    // Form State
+    const [formData, setFormData] = useState({
+        cat_name: '',
+        cat_folder: '',
+        license: '',
+        plan: '',
+        factory: '',
+        license_no: '',
+        allow_datetime: null as Dayjs | null,
+        expire_datetime: null as Dayjs | null,
+        warning_datetime: null as Dayjs | null,
+        department: '',
+        status: '',
+        responsible_person: '',
+        document_preparer: '',
+        document_receive: '',
+        document_state: '',
+        objective: '',
+        remark: ''
+    });
+
+    const [files, setFiles] = useState<File[]>([]);
+    const [existingFile, setExistingFile] = useState<string | null>(null);
+    const [willDeleteFile, setWillDeleteFile] = useState(false);
+
+    // Extra UI State
+    const [needUpdateStatus, setNeedUpdateStatus] = useState(true);
+    const [isInactive, setIsInactive] = useState(false);
+    const [expectedFinishDate, setExpectedFinishDate] = useState<Dayjs | null>(null);
+
+    const [deleteFileIndex, setDeleteFileIndex] = useState<number | null>(null);
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+    const [openDeleteExistingDialog, setOpenDeleteExistingDialog] = useState(false);
+
+    useEffect(() => {
+        if (userRole === 'view') {
+            router.push('/compliance');
+            return;
+        }
+    }, [userRole]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            // 1. Fetch Masters
+            await Promise.all([fetchStatusMaster(), fetchCategories(), fetchUsers(), fetchStates(), fetchReceiveOptions(), fetchStateOptions()]);
+            // 2. Fetch Compliance Data
+            if (id) await fetchComplianceData(id as string);
+            setLoading(false);
+        };
+        fetchData();
+    }, [id, userCatId, userFactories]);
+
+    const fetchStatusMaster = async () => {
+        try {
+            const res = await fetch('/api/status-master');
+            const data = await res.json();
+            if (res.ok) {
+                setDepartments(data.filter((d: StatusMaster) => d.type?.toLowerCase() === 'auth'));
+                let allFactories = data.filter((f: StatusMaster) => f.type?.toLowerCase() === 'factory');
+                if (userFactories) {
+                    const allowedFactories = userFactories.split(',').map((f: string) => f.trim()).filter(Boolean);
+                    allFactories = allFactories.filter((f: StatusMaster) => allowedFactories.includes(f.code_id));
+                }
+                setFactories(allFactories);
+            }
+        } catch (err) { console.error('Failed to load status master'); }
+    };
+
+    const fetchStates = async () => {
+        try {
+            const res = await fetch('/api/status-master?type=state');
+            if (res.ok) setStates(await res.json());
+        } catch (err) { console.error('Failed to load states'); }
+    };
+
+    const fetchReceiveOptions = async () => {
+        try {
+            const res = await fetch('/api/compliance?type=received-options');
+            if (res.ok) {
+                const data = await res.json();
+                setReceiveOptions(data);
+            }
+        } catch (err) { console.error('Failed to load receive options'); }
+    };
+
+    const fetchStateOptions = async () => {
+        try {
+            const res = await fetch('/api/compliance?type=state-options');
+            if (res.ok) {
+                const data = await res.json();
+                setStateOptions(data);
+            }
+        } catch (err) { console.error('Failed to load state options'); }
+    };
+
+    const fetchCategories = async () => {
+        try {
+            const url = userCatId ? `/api/categories?cat_id=${userCatId}` : '/api/categories';
+            const res = await fetch(url);
+            if (res.ok) setCategories(await res.json());
+        } catch (err) { console.error('Failed to load categories'); }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch('/api/users');
+            if (res.ok) setUsers(await res.json());
+        } catch (err) { console.error('Failed to load users'); }
+    };
+
+    const fetchComplianceData = async (complianceId: string) => {
+        try {
+            const resId = await fetch(`/api/compliance?id=${complianceId}`);
+            if (resId.ok) {
+                const data = await resId.json();
+                // Map data to form
+                setFormData({
+                    cat_name: data.cat_name || '',
+                    cat_folder: data.cat_folder || '',
+                    license: data.license || '',
+                    plan: data.plan || '',
+                    factory: data.factory || '',
+                    license_no: data.license_no || '',
+                    allow_datetime: data.allow_datetime ? dayjs(data.allow_datetime) : null,
+                    expire_datetime: data.expire_datetime ? dayjs(data.expire_datetime) : null,
+                    warning_datetime: data.warning_datetime ? dayjs(data.warning_datetime) : null,
+                    department: data.department || '',
+                    status: data.status || '',
+                    responsible_person: data.responsible_person || '',
+                    document_preparer: data.document_preparer || '',
+                    document_receive: data.document_receive || '',
+                    document_state: data.document_state || '',
+                    objective: data.objective || '',
+                    remark: data.remark || ''
+                });
+
+                if (data.reply === 'on') {
+                    setNeedUpdateStatus(true);
+                } else {
+                    setNeedUpdateStatus(false);
+                }
+
+                if (data.inactive === 'on') {
+                    setIsInactive(true);
+                } else {
+                    setIsInactive(false);
+                }
+
+                if (data.expected_datetime) {
+                    setExpectedFinishDate(dayjs(data.expected_datetime));
+                }
+
+                setExistingFile(data.file || null);
+            }
+        } catch (error) {
+            console.error("Error fetching compliance:", error);
+            showSnackbar("ไม่สามารถโหลดข้อมูลได้", "error");
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const newFiles = Array.from(e.target.files);
+            setFiles(prev => [...prev, ...newFiles]);
+        }
+        e.target.value = ''; // Reset input value to allow re-selection
+    };
+
+    const handleRemoveFileClick = (index: number) => {
+        setDeleteFileIndex(index);
+        setOpenDeleteDialog(true);
+    };
+
+    const handleConfirmRemoveFile = () => {
+        if (deleteFileIndex !== null) {
+            setFiles(prev => prev.filter((_, i) => i !== deleteFileIndex));
+            setDeleteFileIndex(null);
+            setOpenDeleteDialog(false);
+        }
+    };
+
+    const handleRemoveExistingFileClick = () => {
+        setOpenDeleteExistingDialog(true);
+    };
+
+    const handleConfirmRemoveExistingFile = () => {
+        setWillDeleteFile(true);
+        setExistingFile(null);
+        setOpenDeleteExistingDialog(false);
+    };
+
+    const textFieldProps = {
+        fullWidth: true,
+        InputProps: { sx: { borderRadius: 2 } }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+
+        try {
+            const data = new FormData();
+
+            // Append basic fields
+            Object.entries(formData).forEach(([key, value]) => {
+                if (key === 'allow_datetime' || key === 'expire_datetime' || key === 'warning_datetime') {
+                    if (value) {
+                        data.append(key, (value as Dayjs).toISOString());
+                    } else {
+                        data.append(key, 'null');
+                    }
+                } else if (value !== null && value !== undefined) {
+                    data.append(key, value as string);
+                }
+            });
+
+            // Append expected_datetime if needed
+            data.append('need_update', needUpdateStatus ? 'on' : 'off');
+            data.append('inactive', isInactive ? 'on' : 'off');
+            if (needUpdateStatus && expectedFinishDate) {
+                data.append('expected_datetime', expectedFinishDate.toISOString());
+            } else {
+                data.append('expected_datetime', 'null');
+            }
+
+            // Append new files
+            files.forEach(file => {
+                data.append('files', file);
+            });
+
+            if (willDeleteFile) {
+                data.append('delete_file', 'true');
+            }
+
+            const res = await fetch(`/api/compliance?id=${id}`, {
+                method: 'PUT',
+                body: data
+            });
+
+            if (res.ok) {
+                showSnackbar('บันทึกการแก้ไขเรียบร้อยแล้ว', 'success');
+                router.push('/compliance');
+            } else {
+                const result = await res.json();
+                showSnackbar(result.error || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
+            }
+        } catch (err) {
+            showSnackbar('เกิดข้อผิดพลาด', 'error');
+            console.error(err);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <DashboardLayout title="แก้ไขเอกสาร">
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+                    <CircularProgress />
+                </Box>
+            </DashboardLayout>
+        );
+    }
+
+    return (
+        <DashboardLayout title="แก้ไขเอกสาร">
+            <Container maxWidth="xl" sx={{ p: 0 }}>
+                <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="th">
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
+                        <Box>
+                            <Typography variant="h4" fontWeight="800" sx={{ mb: 0.5, letterSpacing: '-0.5px' }}>
+                                แก้ไขเอกสาร (Edit Compliance)
+                            </Typography>
+                            <Typography variant="body1" color="text.secondary">
+                                แก้ไขข้อมูลเอกสารและใบอนุญาต
+                            </Typography>
+                        </Box>
+                    </Stack>
+
+                    <form onSubmit={handleSubmit}>
+                        {/* Reuse Layout from Create Page */}
+                        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3 }}>
+
+                            {/* Left Column - Main Info */}
+                            <Stack spacing={3} sx={{ flex: 1, minWidth: 0 }}>
+
+                                {/* General Information Card */}
+                                <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
+                                    <SectionHeader icon={InfoCircle} title="ข้อมูลทั่วไป (General Info)" color={theme.palette.primary.main} />
+
+                                    <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
+                                        <Box sx={{ gridColumn: '1 / -1' }}>
+                                            <FormControl fullWidth>
+                                                <InputLabel>หมวดหมู่เอกสาร</InputLabel>
+                                                <Select
+                                                    value={formData.cat_folder}
+                                                    label="หมวดหมู่เอกสาร"
+                                                    onChange={(e) => {
+                                                        const selected = categories.find(c => c.cat_folder === e.target.value);
+                                                        setFormData({
+                                                            ...formData,
+                                                            cat_folder: e.target.value,
+                                                            cat_name: selected ? selected.id.toString() : formData.cat_name
+                                                        });
+                                                    }}
+                                                    sx={{ borderRadius: 2 }}
+                                                >
+                                                    {categories.map((cat) => (
+                                                        <MenuItem key={cat.id} value={cat.cat_folder}>{cat.name}</MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Box>
+                                        <TextField
+                                            {...textFieldProps}
+                                            label="ชื่อใบอนุญาต (License)"
+                                            value={formData.license}
+                                            onChange={(e) => setFormData({ ...formData, license: e.target.value })}
+                                        />
+                                        <TextField
+                                            {...textFieldProps}
+                                            label="ทะเบียน/เลขที่ใบอนุญาต"
+                                            value={formData.license_no}
+                                            onChange={(e) => setFormData({ ...formData, license_no: e.target.value })}
+                                        />
+                                        <TextField
+                                            {...textFieldProps}
+                                            label="แบบ (Plan)"
+                                            value={formData.plan}
+                                            onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+                                        />
+                                        <TextField
+                                            {...textFieldProps}
+                                            label="สถานะการใช้งาน"
+                                            value={formData.status}
+                                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                        />
+                                    </Box>
+                                </Paper>
+
+                                {/* Location & Organization Card */}
+                                <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
+                                    <SectionHeader icon={FolderOpen} title="สถานที่และหน่วยงาน" color="#f59e0b" />
+                                    <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
+                                        <FormControl fullWidth>
+                                            <InputLabel>โรงงาน</InputLabel>
+                                            <Select
+                                                value={formData.factory}
+                                                label="โรงงาน"
+                                                onChange={(e) => setFormData({ ...formData, factory: e.target.value })}
+                                                sx={{ borderRadius: 2 }}
+                                            >
+                                                {factories.map((fac) => (
+                                                    <MenuItem key={fac.id} value={fac.code_id}>{fac.name}</MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                        <TextField
+                                            {...textFieldProps}
+                                            label="หน่วยงาน"
+                                            value={formData.department}
+                                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                        />
+                                        <Autocomplete
+                                            freeSolo
+                                            forcePopupIcon
+                                            options={stateOptions}
+                                            value={formData.document_state}
+                                            onInputChange={(event, newInputValue) => {
+                                                setFormData({ ...formData, document_state: newInputValue });
+                                            }}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    label="เอกสารอยู่ที่"
+                                                    fullWidth
+                                                    InputProps={{
+                                                        ...params.InputProps,
+                                                        sx: { borderRadius: 2 }
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                        <Autocomplete
+                                            freeSolo
+                                            forcePopupIcon
+                                            options={receiveOptions}
+                                            value={formData.document_receive}
+                                            onInputChange={(event, newInputValue) => {
+                                                setFormData({ ...formData, document_receive: newInputValue });
+                                            }}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    label="เอกสารที่ได้รับ"
+                                                    fullWidth
+                                                    InputProps={{
+                                                        ...params.InputProps,
+                                                        sx: { borderRadius: 2 }
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                </Paper>
+
+                                {/* Details Card */}
+                                <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
+                                    <SectionHeader icon={Note} title="รายละเอียดและเอกสารแนบ" color="#8b5cf6" />
+                                    <Stack spacing={2}>
+                                        <TextField
+                                            {...textFieldProps}
+                                            multiline
+                                            rows={3}
+                                            label="วัตถุประสงค์"
+                                            value={formData.objective}
+                                            onChange={(e) => setFormData({ ...formData, objective: e.target.value })}
+                                        />
+
+                                        <Box
+                                            border="1px dashed"
+                                            borderColor="divider"
+                                            borderRadius={2}
+                                            p={2}
+                                            sx={{
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 2,
+                                                transition: 'all 0.2s',
+                                                '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.02) }
+                                            }}
+                                            component="label"
+                                        >
+                                            <input
+                                                type="file"
+                                                multiple
+                                                hidden
+                                                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx"
+                                                onChange={handleFileChange}
+                                            />
+                                            <Avatar
+                                                sx={{
+                                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                    color: 'primary.main',
+                                                    width: 40,
+                                                    height: 40
+                                                }}
+                                            >
+                                                <DocumentUpload size="20" variant="Bulk" color={theme.palette.primary.main} />
+                                            </Avatar>
+                                            <Box>
+                                                <Typography variant="subtitle2" fontWeight={600}>
+                                                    อัพโหลดไฟล์แนบเพิ่มเติม (Upload New Items)
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    คลิกเพื่อเลือกไฟล์ (รูปภาพ, PDF, Office)
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+
+                                        {/* Existing Files List */}
+                                        {existingFile && (
+                                            <List dense>
+                                                <ListItem
+                                                    secondaryAction={
+                                                        <Stack direction="row" spacing={1}>
+                                                            <IconButton component="a" edge="end" aria-label="info" href={`/uploads/${existingFile}`} target="_blank">
+                                                                <Document size="18" color={theme.palette.primary.main} />
+                                                            </IconButton>
+                                                            <IconButton edge="end" aria-label="delete" onClick={handleRemoveExistingFileClick}>
+                                                                <Trash size="18" color={theme.palette.error.main} />
+                                                            </IconButton>
+                                                        </Stack>
+                                                    }
+                                                    sx={{
+                                                        bgcolor: alpha(theme.palette.success.main, 0.05),
+                                                        borderRadius: 2,
+                                                        mb: 1,
+                                                        border: '1px solid',
+                                                        borderColor: alpha(theme.palette.success.main, 0.2)
+                                                    }}
+                                                >
+                                                    <ListItemAvatar>
+                                                        <Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
+                                                            <Document size="16" variant="Bold" color={theme.palette.success.main} />
+                                                        </Avatar>
+                                                    </ListItemAvatar>
+                                                    <ListItemText
+                                                        primary={existingFile}
+                                                        secondary="ไฟล์ปัจจุบันในระบบ"
+                                                        primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                                    />
+                                                </ListItem>
+                                            </List>
+                                        )}
+
+                                        {/* New Files List */}
+                                        {files.length > 0 && (
+                                            <List dense>
+                                                {files.map((file, index) => (
+                                                    <ListItem
+                                                        key={index}
+                                                        secondaryAction={
+                                                            <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveFileClick(index)} color="error">
+                                                                <Trash size="18" color={theme.palette.error.main} />
+                                                            </IconButton>
+                                                        }
+                                                        sx={{
+                                                            bgcolor: 'background.paper',
+                                                            borderRadius: 2,
+                                                            mb: 1,
+                                                            border: '1px solid',
+                                                            borderColor: 'divider'
+                                                        }}
+                                                    >
+                                                        <ListItemAvatar>
+                                                            <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
+                                                                <Document size="16" variant="Bold" color={theme.palette.primary.main} />
+                                                            </Avatar>
+                                                        </ListItemAvatar>
+                                                        <ListItemText
+                                                            primary={file.name}
+                                                            secondary={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                                                            primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                                        />
+                                                    </ListItem>
+                                                ))}
+                                            </List>
+                                        )}
+                                    </Stack>
+                                </Paper>
+                            </Stack>
+
+                            {/* Right Column - Dates & Responsibility */}
+                            <Stack spacing={3} sx={{ width: { xs: '100%', lg: '350px', xl: '400px' }, flexShrink: 0 }}>
+
+                                {/* Dates Card */}
+                                <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
+                                    <SectionHeader icon={Calendar} title="วันที่เกี่ยวข้อง" color="#10b981" />
+                                    <Stack spacing={2}>
+                                        <DatePicker
+                                            label="วันที่อนุญาต"
+                                            value={formData.allow_datetime}
+                                            onChange={(newDate) => setFormData({ ...formData, allow_datetime: newDate })}
+                                            slotProps={{ textField: { ...textFieldProps } }}
+                                        />
+                                        <DatePicker
+                                            label="วันที่หมดอายุ"
+                                            value={formData.expire_datetime}
+                                            onChange={(newDate) => {
+                                                const warningDate = newDate ? newDate.subtract(90, 'day') : null;
+                                                setFormData({
+                                                    ...formData,
+                                                    expire_datetime: newDate,
+                                                    warning_datetime: warningDate
+                                                });
+                                            }}
+                                            slotProps={{ textField: { ...textFieldProps } }}
+                                        />
+                                        <DatePicker
+                                            label="วันเดือนต่ออายุ (แจ้งเตือนล่วงหน้า 90 วัน)"
+                                            value={formData.warning_datetime}
+                                            onChange={(newDate) => setFormData({ ...formData, warning_datetime: newDate })}
+                                            slotProps={{ textField: { ...textFieldProps } }}
+                                        />
+                                    </Stack>
+                                </Paper>
+
+                                {/* Responsibility Card */}
+                                <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
+                                    <SectionHeader icon={Profile2User} title="ผู้รับผิดชอบ" color="#ec4899" />
+                                    <Stack spacing={2}>
+                                        <FormControl fullWidth>
+                                            <InputLabel>ผู้รับผิดชอบ</InputLabel>
+                                            <Select
+                                                value={formData.responsible_person || ''}
+                                                label="ผู้รับผิดชอบ"
+                                                onChange={(e) => setFormData({ ...formData, responsible_person: e.target.value })}
+                                                sx={{ borderRadius: 2 }}
+                                            >
+                                                {users.map((u) => (
+                                                    <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                        <FormControl fullWidth>
+                                            <InputLabel>ผู้จัดเตรียมเอกสาร</InputLabel>
+                                            <Select
+                                                value={formData.document_preparer || ''}
+                                                label="ผู้จัดเตรียมเอกสาร"
+                                                onChange={(e) => setFormData({ ...formData, document_preparer: e.target.value })}
+                                                sx={{ borderRadius: 2 }}
+                                            >
+                                                {users.map((u) => (
+                                                    <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    </Stack>
+                                </Paper>
+
+                                {/* Status Update Card */}
+                                <Paper sx={{ p: 3, borderRadius: 3, bgcolor: alpha(theme.palette.primary.main, 0.02), border: `1px dashed ${theme.palette.primary.main}` }}>
+                                    <Typography variant="subtitle1" fontWeight={700} color="primary" sx={{ mb: 2 }}>
+                                        สถานะและการติดตาม
+                                    </Typography>
+
+                                    <TextField
+                                        {...textFieldProps}
+                                        multiline
+                                        rows={3}
+                                        label="สถานะล่าสุด (Latest Remark)"
+                                        value={formData.remark}
+                                        onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                                        sx={{ mb: 2, bgcolor: 'background.paper', ...textFieldProps.InputProps.sx }}
+                                    />
+
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                checked={needUpdateStatus}
+                                                onChange={(e) => setNeedUpdateStatus(e.target.checked)}
+                                                color="success"
+                                            />
+                                        }
+                                        label={<Typography variant="body2" fontWeight={600}>จำเป็นต้องอัพเดตสถานะ</Typography>}
+                                    />
+
+                                    <Divider sx={{ my: 1 }} />
+
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                checked={isInactive}
+                                                onChange={(e) => setIsInactive(e.target.checked)}
+                                                color="error"
+                                            />
+                                        }
+                                        label={<Typography variant="body2" fontWeight={600} color={isInactive ? "error" : "text.secondary"}>ยกเลิกเอกสาร (Cancel Document)</Typography>}
+                                    />
+
+                                    <Box mt={2}>
+                                        <DatePicker
+                                            label="วันที่คาดว่าจะแล้วเสร็จ"
+                                            value={expectedFinishDate}
+                                            onChange={(newDate) => setExpectedFinishDate(newDate)}
+                                            slotProps={{
+                                                textField: {
+                                                    fullWidth: true,
+                                                    size: 'small',
+                                                    sx: { bgcolor: 'background.paper', borderRadius: 2 },
+                                                    InputProps: { sx: { borderRadius: 2 } }
+                                                }
+                                            }}
+                                        />
+                                    </Box>
+                                </Paper>
+                            </Stack>
+                        </Box>
+
+                        {/* Buttons Footer */}
+                        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end', gap: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                startIcon={<CloseCircle color={theme.palette.text.secondary} />}
+                                onClick={() => router.back()}
+                                size="large"
+                                sx={{ borderRadius: 2, px: 4, borderColor: 'divider' }}
+                            >
+                                ยกเลิก
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <Save2 variant="Bold" />}
+                                size="large"
+                                disabled={saving}
+                                sx={{
+                                    borderRadius: 2,
+                                    px: 4,
+                                    boxShadow: '0 8px 20px -8px rgba(99, 102, 241, 0.6)',
+                                    '&:hover': { boxShadow: '0 12px 24px -10px rgba(99, 102, 241, 0.8)' }
+                                }}
+                            >
+                                {saving ? 'บันทึกการแก้ไข...' : 'บันทึกการแก้ไข'}
+                            </Button>
+                        </Box>
+                    </form>
+                </LocalizationProvider>
+
+                {/* Confirm Delete New File Dialog */}
+                <Dialog
+                    open={openDeleteDialog}
+                    onClose={() => setOpenDeleteDialog(false)}
+                    PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+                >
+                    <DialogTitle sx={{ fontWeight: 700 }}>ยืนยันการลบไฟล์</DialogTitle>
+                    <DialogContent>
+                        <DialogContentText>
+                            คุณแน่ใจหรือไม่ว่าต้องการลบไฟล์แนบใหม่นี้?
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions sx={{ px: 3, pb: 2 }}>
+                        <Button onClick={() => setOpenDeleteDialog(false)} sx={{ borderRadius: 2 }}>ยกเลิก</Button>
+                        <Button
+                            onClick={handleConfirmRemoveFile}
+                            variant="contained"
+                            color="error"
+                            autoFocus
+                            startIcon={<Trash variant="Bold" />}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            ลบไฟล์
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Confirm Delete Existing File Dialog */}
+                <Dialog
+                    open={openDeleteExistingDialog}
+                    onClose={() => setOpenDeleteExistingDialog(false)}
+                    PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+                >
+                    <DialogTitle sx={{ fontWeight: 700 }}>ยืนยันการลบไฟล์เดิม</DialogTitle>
+                    <DialogContent>
+                        <DialogContentText>
+                            คุณแน่ใจหรือไม่ว่าต้องการลบไฟล์แนบเดิมที่มีอยู่ในระบบ?
+                            <br />
+                            การเปลี่ยนนี้จะมีผลเมื่อคุณกดบันทึกข้อมูล
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions sx={{ px: 3, pb: 2 }}>
+                        <Button onClick={() => setOpenDeleteExistingDialog(false)} sx={{ borderRadius: 2 }}>ยกเลิก</Button>
+                        <Button
+                            onClick={handleConfirmRemoveExistingFile}
+                            variant="contained"
+                            color="error"
+                            autoFocus
+                            startIcon={<Trash variant="Bold" />}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            ลบไฟล์เดิม
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            </Container>
+        </DashboardLayout>
+    );
+}
