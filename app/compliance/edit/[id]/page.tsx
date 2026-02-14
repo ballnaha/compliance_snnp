@@ -578,7 +578,7 @@ export default function EditCompliancePage() {
                                                 <ListItem
                                                     secondaryAction={
                                                         <Stack direction="row" spacing={1}>
-                                                            <IconButton component="a" edge="end" aria-label="info" href={`/uploads/${existingFile}`} target="_blank">
+                                                            <IconButton component="a" edge="end" aria-label="info" href={`/api/uploads/${encodeURIComponent(existingFile)}`} target="_blank">
                                                                 <Document size="18" color={theme.palette.primary.main} />
                                                             </IconButton>
                                                             <IconButton edge="end" aria-label="delete" onClick={handleRemoveExistingFileClick}>

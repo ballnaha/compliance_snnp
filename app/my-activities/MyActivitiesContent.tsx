@@ -370,7 +370,7 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
                                                 variant="outlined"
                                                 size="small"
                                                 startIcon={<DocumentText size="18" variant="Bold" color="#6366f1" />}
-                                                href={`/uploads/${row.file}`}
+                                                href={`/api/uploads/${encodeURIComponent(row.file)}`}
                                                 target="_blank"
                                                 sx={{ mt: 1, borderRadius: 1.5, textTransform: 'none' }}
                                             >

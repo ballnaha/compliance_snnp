@@ -256,6 +256,16 @@ export default function CreateCompliancePage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!formData.cat_folder) {
+            showSnackbar('กรุณาเลือกหมวดหมู่เอกสาร', 'error');
+            return;
+        }
+        if (!formData.factory) {
+            showSnackbar('กรุณาเลือกโรงงาน', 'error');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -336,7 +346,7 @@ export default function CreateCompliancePage() {
 
                                     <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
                                         <Box sx={{ gridColumn: '1 / -1' }}>
-                                            <FormControl fullWidth>
+                                            <FormControl fullWidth required error={!formData.cat_folder}>
                                                 <InputLabel>หมวดหมู่เอกสาร</InputLabel>
                                                 <Select
                                                     value={formData.cat_folder}
@@ -388,7 +398,7 @@ export default function CreateCompliancePage() {
                                 <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
                                     <SectionHeader icon={FolderOpen} title="สถานที่และหน่วยงาน" color="#f59e0b" />
                                     <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
-                                        <FormControl fullWidth>
+                                        <FormControl fullWidth required error={!formData.factory}>
                                             <InputLabel>โรงงาน</InputLabel>
                                             <Select
                                                 value={formData.factory}

@@ -405,7 +405,7 @@ export default function DashboardContent() {
                       <Button
                         variant="outlined"
                         size="small"
-                        href={`/uploads/${row.file}`}
+                        href={`/api/uploads/${encodeURIComponent(row.file)}`}
                         target="_blank"
                         sx={{ mt: 1, borderRadius: 1.5, textTransform: 'none' }}
                       >
