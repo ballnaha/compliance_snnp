@@ -39,9 +39,10 @@ import {
     Filter,
     TickCircle
 } from 'iconsax-react';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useSession } from 'next-auth/react';
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/th';
 import buddhistEra from 'dayjs/plugin/buddhistEra';
 
@@ -85,6 +86,9 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedFactory, setSelectedFactory] = useState('all');
     const [expiryFilter, setExpiryFilter] = useState<'all' | 'expired' | '1month' | '2month' | '3month'>('all');
+    const [expiryDateFrom, setExpiryDateFrom] = useState<Dayjs | null>(null);
+    const [expiryDateTo, setExpiryDateTo] = useState<Dayjs | null>(null);
+    const isInvalidDateRange = !!expiryDateFrom && !!expiryDateTo && !expiryDateTo.isAfter(expiryDateFrom, 'day');
 
     const baseFiltered = compliances.filter(item => {
         const matchesSearch = !search || (
@@ -144,9 +148,9 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
     const getExpiryFilterTitle = () => {
         switch (expiryFilter) {
             case 'expired': return 'รายการที่ใบอนุญาตหมดอายุไปแล้ว';
-            case '1month': return 'รายการที่จะหมดอายุภายใน 1 เดือน (0-30 วัน)';
-            case '2month': return 'รายการที่จะหมดอายุภายใน 2 เดือน (0-60 วัน)';
-            case '3month': return 'รายการที่จะหมดอายุภายใน 3 เดือน (0-90 วัน)';
+            case '1month': return 'รายการที่จะหมดอายุภายใน 1 เดือน';
+            case '2month': return 'รายการที่จะหมดอายุภายใน 2 เดือน';
+            case '3month': return 'รายการที่จะหมดอายุภายใน 3 เดือน';
             default: return '';
         }
     };
@@ -180,6 +184,7 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
 
         let matchesExpiry = true;
         const diff = item.expire_datetime ? dayjs(item.expire_datetime).diff(dayjs(), 'day') : null;
+        const expireDate = item.expire_datetime ? dayjs(item.expire_datetime).startOf('day') : null;
 
         if (expiryFilter === 'expired') {
             matchesExpiry = diff !== null && diff < 0;
@@ -191,7 +196,14 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
             matchesExpiry = diff !== null && diff >= 0 && diff <= 90;
         }
 
-        return matchesSearch && matchesCategory && matchesFactory && matchesExpiry;
+        const fromDate = expiryDateFrom ? expiryDateFrom.startOf('day') : null;
+        const toDate = expiryDateTo ? expiryDateTo.endOf('day') : null;
+
+        const matchesFromDate = !fromDate || (!!expireDate && !expireDate.isBefore(fromDate));
+        const matchesToDate = !toDate || (!!expireDate && !expireDate.isAfter(toDate));
+        const matchesExpiryRange = !isInvalidDateRange && matchesFromDate && matchesToDate;
+
+        return matchesSearch && matchesCategory && matchesFactory && matchesExpiry && matchesExpiryRange;
     });
 
     const handleChangePage = (event: unknown, newPage: number) => {
@@ -561,6 +573,45 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
                                 </Select>
                             </FormControl>
                         </Box>
+                        <Box sx={{ flex: { xs: '1 1 auto', md: 2.5 }, width: '100%' }}>
+                            <DatePicker
+                                label="หมดอายุจากวันที่"
+                                value={expiryDateFrom}
+                                format="DD/MM/YYYY"
+                                onChange={(newValue) => {
+                                    setExpiryDateFrom(newValue);
+                                    if (newValue && expiryDateTo && !expiryDateTo.isAfter(newValue, 'day')) {
+                                        setExpiryDateTo(null);
+                                    }
+                                    setPage(0);
+                                }}
+                                slotProps={{
+                                    textField: {
+                                        fullWidth: true,
+                                        size: 'small',
+                                        sx: { '& .MuiOutlinedInput-root': { borderRadius: 2 } }
+                                    }
+                                }}
+                            />
+                        </Box>
+                        <Box sx={{ flex: { xs: '1 1 auto', md: 2.5 }, width: '100%' }}>
+                            <DatePicker
+                                label="หมดอายุถึงวันที่"
+                                value={expiryDateTo}
+                                format="DD/MM/YYYY"
+                                minDate={expiryDateFrom ? expiryDateFrom.add(1, 'day') : undefined}
+                                onChange={(newValue) => { setExpiryDateTo(newValue); setPage(0); }}
+                                slotProps={{
+                                    textField: {
+                                        fullWidth: true,
+                                        size: 'small',
+                                        error: isInvalidDateRange,
+                                        helperText: isInvalidDateRange ? 'วันสิ้นสุดต้องมากกว่าวันเริ่มต้น' : '',
+                                        sx: { '& .MuiOutlinedInput-root': { borderRadius: 2 } }
+                                    }
+                                }}
+                            />
+                        </Box>
                         <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, textAlign: 'right' }}>
                             <Tooltip title="ล้างการกรอง">
                                 <IconButton
@@ -568,6 +619,9 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
                                         setSearch('');
                                         setSelectedCategory('all');
                                         setSelectedFactory('all');
+                                        setExpiryFilter('all');
+                                        setExpiryDateFrom(null);
+                                        setExpiryDateTo(null);
                                         setPage(0);
                                     }}
                                     sx={{ bgcolor: alpha(theme.palette.error.main, 0.05), color: theme.palette.error.main, '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) } }}
@@ -608,6 +662,11 @@ export default function MyActivitiesContent({ type }: { type: 'responsible' | 'p
                                         กำลังแสดง: {getExpiryFilterTitle()}
                                     </Typography>
                                 </Stack>
+                            )}
+                            {(expiryDateFrom || expiryDateTo) && (
+                                <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                                    ช่วงวันหมดอายุ: {expiryDateFrom ? expiryDateFrom.format('DD/MM/YYYY') : '...'} - {expiryDateTo ? expiryDateTo.format('DD/MM/YYYY') : '...'}
+                                </Typography>
                             )}
                             <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                                 {type === 'responsible' ? 'รายการที่คุณเป็นผู้รับผิดชอบ' : 'รายการที่คุณเป็นผู้จัดเตรียมเอกสาร'}

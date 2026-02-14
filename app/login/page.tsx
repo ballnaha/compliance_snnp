@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import Image from "next/image";
 import {
     Box,
     Container,
@@ -21,10 +22,10 @@ import {
     Eye,
     EyeSlash,
     LoginCurve,
-    ShieldTick,
     DocumentText
 } from "iconsax-react";
 import { useSnackbar } from "@/components/SnackbarProvider";
+import logoSmall from "@/public/images/logo-small.png";
 
 export default function LoginPage() {
     const { showSnackbar } = useSnackbar();
@@ -117,19 +118,15 @@ export default function LoginPage() {
                             }}
                         >
                             <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <Box sx={{
-                                    width: 64,
-                                    height: 64,
-                                    borderRadius: 4,
-                                    bgcolor: 'primary.main',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    mb: 2,
-                                    boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.3)',
-                                    color: 'white'
-                                }}>
-                                    <ShieldTick variant="Bold" size={32} color="white" />
+                                <Box sx={{ mb: 2, lineHeight: 0 }}>
+                                    <Image
+                                        src={logoSmall}
+                                        alt="SNNP Logo"
+                                        width={80}
+                                        height={80}
+                                        priority
+                                        style={{ objectFit: 'contain' }}
+                                    />
                                 </Box>
                                 <Typography variant="h4" fontWeight="900" sx={{
                                     mb: 1,
