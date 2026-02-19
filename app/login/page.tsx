@@ -145,12 +145,12 @@ export default function LoginPage() {
                             <form onSubmit={handleSubmit}>
                                 <Stack spacing={3}>
                                     <TextField
-                                        label="ชื่อผู้ใช้งาน"
+                                        label="ชื่อผู้ใช้งาน / อีเมล"
                                         fullWidth
                                         required
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
-                                        placeholder="กรอกชื่อผู้ใช้งานของคุณ"
+                                        placeholder="กรอกชื่อผู้ใช้งาน หรือ อีเมล"
                                         InputProps={{
                                             sx: { borderRadius: 4, bgcolor: 'rgba(255, 255, 255, 0.5)' },
                                             startAdornment: (
