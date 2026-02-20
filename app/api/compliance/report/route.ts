@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 export async function GET() {
     try {
+        const session = await auth();
+        if (!session || !session.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const userCatId = (session.user as any).cat_id;
+        const userFactories = (session.user as any).factories;
+
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const in90Days = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
@@ -11,6 +20,26 @@ export async function GET() {
         const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
         const endOf2MonthsAhead = new Date(now.getFullYear(), now.getMonth() + 3, 0);
+
+        // Build WHERE clause based on permissions
+        let whereClause = "WHERE (inactive IS NULL OR inactive = 'off')";
+        const params: any[] = [];
+
+        if (userCatId) {
+            const catIds = userCatId.split(',').map((id: string) => id.trim()).filter(Boolean);
+            if (catIds.length > 0) {
+                whereClause += ` AND cat_name IN (${catIds.map(() => '?').join(',')})`;
+                params.push(...catIds);
+            }
+        }
+
+        if (userFactories) {
+            const factoryIds = userFactories.split(',').map((id: string) => id.trim()).filter(Boolean);
+            if (factoryIds.length > 0) {
+                whereClause += ` AND factory IN (${factoryIds.map(() => '?').join(',')})`;
+                params.push(...factoryIds);
+            }
+        }
 
         // Match original PHP: datediff(expire_datetime, now()) <= 90 and (inactive is null or inactive = 'off')
         // Use raw query to handle invalid datetime values (0000-00-00)
@@ -23,9 +52,9 @@ export async function GET() {
                 document_receive, document_state, objective, file, remark,
                 expected_datetime, reply, inactive, created_at, updated_at
             FROM categories_form
-            WHERE inactive IS NULL OR inactive = 'off'
+            ${whereClause}
             ORDER BY id DESC
-        `);
+        `, ...params);
 
         // Fetch all categories for joining (cat_name -> categories_master.id)
         const categories = await prisma.categories_master.findMany({
@@ -64,11 +93,11 @@ export async function GET() {
                 if (user) respName = user.name;
             }
 
-            // Join: categories_form.document_preparer = status_master.code_id (s3)
+            // Join: categories_form.document_preparer = users.id (same as compliance API)
             let prepName = item.document_preparer || '';
             if (item.document_preparer) {
-                const sm = statusMasters.find(s => s.code_id === item.document_preparer);
-                if (sm) prepName = sm.name || '';
+                const user = users.find(u => u.id.toString() === item.document_preparer);
+                if (user) prepName = user.name;
             }
 
             // Calculate urgency based on expire_datetime relative to today

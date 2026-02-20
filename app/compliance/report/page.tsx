@@ -27,6 +27,7 @@ interface ReportItem {
     factory: string;
     license_no: string;
     status: string;
+    remark: string;
     expire_datetime: string;
     expected_datetime: string;
     responsible_person: string;
@@ -255,7 +256,7 @@ function ReportContent({ data }: { data: ReportData }) {
                         <th style={thStyle}>แบบ</th>
                         <th style={thStyle}>โรงงาน</th>
                         <th style={{ ...thStyle, minWidth: '150px' }}>ทะเบียน/ใบอนุญาต</th>
-                        <th style={{ ...thStyle, minWidth: '100px' }}>สถานะล่าสุด</th>
+                        <th style={{ ...thStyle, minWidth: '100px' }}>สถานะการติดตาม</th>
                         <th style={{ ...thStyle, minWidth: '100px' }}>วันที่คาดว่า<br />จะแล้วเสร็จ</th>
                         <th style={{ ...thStyle, minWidth: '90px' }}>วันครบกำหนด</th>
                         <th style={thStyle}>ความเร่งด่วน</th>
@@ -274,7 +275,7 @@ function ReportContent({ data }: { data: ReportData }) {
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>{item.plan || '-'}</td>
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>{item.factory || '-'}</td>
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>{item.license_no || '-'}</td>
-                                    <td style={{ ...tdStyle, textAlign: 'center' }}>{item.status || '-'}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'center' }}>{item.remark || '-'}</td>
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>
                                         {item.expected_datetime || '-'}
                                     </td>
