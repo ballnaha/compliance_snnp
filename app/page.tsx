@@ -40,6 +40,7 @@ import {
 } from 'iconsax-react';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import DashboardLayout from '@/components/DashboardLayout';
+import ExportExcelButton from '@/components/ExportExcelButton';
 import { useSession } from 'next-auth/react';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/th';
@@ -439,6 +440,41 @@ export default function DashboardContent() {
               ภาพรวมเอกสาร Compliance ทั้งหมดในหมวดหมู่ที่คุณได้รับอนุญาต
             </Typography>
           </Box>
+          <ExportExcelButton
+            data={filteredCompliances.map(item => ({
+              ...item,
+              allow_datetime: item.allow_datetime ? dayjs(item.allow_datetime).format('DD/MM/YYYY') : '-',
+              expire_datetime: item.expire_datetime ? dayjs(item.expire_datetime).format('DD/MM/YYYY') : '-',
+              warning_datetime: item.warning_datetime ? dayjs(item.warning_datetime).format('DD/MM/YYYY') : '-',
+              cat_name: item.cat_name || '-',
+              category_description: item.category_description || '-',
+              file_link: item.file ? {
+                text: item.file,
+                link: `${window.location.origin}/api/uploads/${encodeURIComponent(item.file)}`
+              } : '-'
+            }))}
+            fileName={`Dashboard_Compliance_${dayjs().format('YYYYMMDD_HHmm')}`}
+            headers={{
+              cat_name: "หมวดหมู่",
+              category_description: "รายละเอียดหมวดหมู่",
+              license: "ชื่อใบอนุญาต",
+              license_no: "เลขที่ใบอนุญาต",
+              department: "หน่วยงาน",
+              allow_datetime: "วันที่อนุญาต",
+              expire_datetime: "วันที่หมดอายุ",
+              warning_datetime: "วันที่เตือน",
+              factory: "โรงงาน",
+              status: "สถานะ",
+              plan: "แบบ",
+              responsible_person: "ผู้รับผิดชอบ",
+              document_preparer: "ผู้จัดเตรียม",
+              document_receive: "ผู้รับเอกสาร",
+              document_state: "สถานะเอกสาร",
+              objective: "วัตถุประสงค์",
+              remark: "หมายเหตุ",
+              file_link: "ไฟล์แนบ"
+            }}
+          />
         </Stack>
 
         {/* Dashboard Stats Cards */}
@@ -487,125 +523,137 @@ export default function DashboardContent() {
         </Box>
 
         <Paper sx={{ p: 2.5, borderRadius: 3, mb: 3, boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-          <Box sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', md: 'row' },
-            gap: 2,
-            alignItems: 'center'
-          }}>
-            <Box sx={{ flex: { xs: '1 1 auto', md: 4 }, width: '100%' }}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="ค้นหาใบอนุญาต, เลขที่ใบอนุญาต..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchNormal1 variant="TwoTone" size={20} color={theme.palette.primary.main} />
-                    </InputAdornment>
-                  ),
-                  sx: { borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.02) }
-                }}
-              />
+          <Stack spacing={2}>
+            {/* Row 1: Search and Main Categories */}
+            <Box sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              gap: 2,
+              alignItems: 'center'
+            }}>
+              <Box sx={{ flex: { xs: '1 1 auto', md: 2 }, width: '100%' }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="ค้นหาใบอนุญาต, เลขที่ใบอนุญาต..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchNormal1 variant="TwoTone" size={20} color={theme.palette.primary.main} />
+                      </InputAdornment>
+                    ),
+                    sx: { borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.02) }
+                  }}
+                />
+              </Box>
+              <Box sx={{ flex: { xs: '1 1 auto', md: 1 }, width: '100%' }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="category-filter-label">หมวดหมู่</InputLabel>
+                  <Select
+                    labelId="category-filter-label"
+                    value={selectedCategory}
+                    label="หมวดหมู่"
+                    onChange={(e) => { setSelectedCategory(e.target.value); setPage(0); }}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <MenuItem value="all">ทั้งหมด (ที่ได้รับอนุญาต)</MenuItem>
+                    {categories.map((cat) => (
+                      <MenuItem key={cat.id} value={cat.id.toString()}>
+                        {cat.name} {cat.description}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box sx={{ flex: { xs: '1 1 auto', md: 1 }, width: '100%' }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="factory-filter-label">โรงงาน</InputLabel>
+                  <Select
+                    labelId="factory-filter-label"
+                    value={selectedFactory}
+                    label="โรงงาน"
+                    onChange={(e) => { setSelectedFactory(e.target.value); setPage(0); }}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <MenuItem value="all">ทั้งหมด (ที่ได้รับอนุญาต)</MenuItem>
+                    {factories.map((fact) => (
+                      <MenuItem key={fact.id} value={fact.name}>
+                        {fact.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
             </Box>
-            <Box sx={{ flex: { xs: '1 1 auto', md: 3.5 }, width: '100%' }}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="category-filter-label">หมวดหมู่</InputLabel>
-                <Select
-                  labelId="category-filter-label"
-                  value={selectedCategory}
-                  label="หมวดหมู่"
-                  onChange={(e) => { setSelectedCategory(e.target.value); setPage(0); }}
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="all">ทั้งหมด (ที่ได้รับอนุญาต)</MenuItem>
-                  {categories.map((cat) => (
-                    <MenuItem key={cat.id} value={cat.id.toString()}>
-                      {cat.name} {cat.description}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-            <Box sx={{ flex: { xs: '1 1 auto', md: 3.5 }, width: '100%' }}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="factory-filter-label">โรงงาน</InputLabel>
-                <Select
-                  labelId="factory-filter-label"
-                  value={selectedFactory}
-                  label="โรงงาน"
-                  onChange={(e) => { setSelectedFactory(e.target.value); setPage(0); }}
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="all">ทั้งหมด (ที่ได้รับอนุญาต)</MenuItem>
-                  {factories.map((fact) => (
-                    <MenuItem key={fact.id} value={fact.name}>
-                      {fact.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-            <Box sx={{ flex: { xs: '1 1 auto', md: 2.5 }, width: '100%' }}>
-              <DatePicker
-                label="หมดอายุจากวันที่"
-                value={expiryDateFrom}
-                format="DD/MM/YYYY"
-                onChange={(newValue) => {
-                  setExpiryDateFrom(newValue);
-                  if (newValue && expiryDateTo && !expiryDateTo.isAfter(newValue, 'day')) {
-                    setExpiryDateTo(null);
-                  }
-                  setPage(0);
-                }}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    size: 'small',
-                    sx: { '& .MuiOutlinedInput-root': { borderRadius: 2 } }
-                  }
-                }}
-              />
-            </Box>
-            <Box sx={{ flex: { xs: '1 1 auto', md: 2.5 }, width: '100%' }}>
-              <DatePicker
-                label="หมดอายุถึงวันที่"
-                value={expiryDateTo}
-                format="DD/MM/YYYY"
-                minDate={expiryDateFrom ? expiryDateFrom.add(1, 'day') : undefined}
-                onChange={(newValue) => { setExpiryDateTo(newValue); setPage(0); }}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    size: 'small',
-                    error: isInvalidDateRange,
-                    helperText: isInvalidDateRange ? 'วันสิ้นสุดต้องมากกว่าวันเริ่มต้น' : '',
-                    sx: { '& .MuiOutlinedInput-root': { borderRadius: 2 } }
-                  }
-                }}
-              />
-            </Box>
-            <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, textAlign: 'right' }}>
-              <Tooltip title="ล้างการกรอง">
-                <IconButton
-                  onClick={() => {
-                    setSearch('');
-                    setSelectedCategory('all');
-                    setSelectedFactory('all');
-                    setExpiryFilter('all');
-                    setExpiryDateFrom(null);
-                    setExpiryDateTo(null);
+
+            {/* Row 2: Date Filters and Clear Button */}
+            <Box sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              gap: 2,
+              alignItems: 'center'
+            }}>
+              <Box sx={{ flex: { xs: '1 1 auto', md: 1 }, width: '100%' }}>
+                <DatePicker
+                  label="หมดอายุจากวันที่"
+                  value={expiryDateFrom}
+                  format="DD/MM/YYYY"
+                  onChange={(newValue) => {
+                    setExpiryDateFrom(newValue);
+                    if (newValue && expiryDateTo && !expiryDateTo.isAfter(newValue, 'day')) {
+                      setExpiryDateTo(null);
+                    }
                     setPage(0);
                   }}
-                  sx={{ bgcolor: alpha(theme.palette.error.main, 0.05), color: theme.palette.error.main }}
-                >
-                  <Filter size={20} variant="Bulk" color={theme.palette.error.main} />
-                </IconButton>
-              </Tooltip>
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: 2 } }
+                    }
+                  }}
+                />
+              </Box>
+              <Box sx={{ flex: { xs: '1 1 auto', md: 1 }, width: '100%' }}>
+                <DatePicker
+                  label="หมดอายุถึงวันที่"
+                  value={expiryDateTo}
+                  format="DD/MM/YYYY"
+                  minDate={expiryDateFrom ? expiryDateFrom.add(1, 'day') : undefined}
+                  onChange={(newValue) => { setExpiryDateTo(newValue); setPage(0); }}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                      error: isInvalidDateRange,
+                      helperText: isInvalidDateRange ? 'วันสิ้นสุดต้องมากกว่าวันเริ่มต้น' : '',
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: 2 } }
+                    }
+                  }}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Tooltip title="ล้างการกรอง">
+                  <IconButton
+                    onClick={() => {
+                      setSearch('');
+                      setSelectedCategory('all');
+                      setSelectedFactory('all');
+                      setExpiryFilter('all');
+                      setExpiryDateFrom(null);
+                      setExpiryDateTo(null);
+                      setPage(0);
+                    }}
+                    sx={{ bgcolor: alpha(theme.palette.error.main, 0.05), color: theme.palette.error.main }}
+                  >
+                    <Filter size={20} variant="Bulk" color={theme.palette.error.main} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Box>
-          </Box>
+          </Stack>
         </Paper>
 
         <Paper sx={{ borderRadius: 2, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
@@ -707,6 +755,6 @@ export default function DashboardContent() {
           />
         </Paper>
       </Container>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

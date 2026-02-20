@@ -51,6 +51,7 @@ import {
     More
 } from 'iconsax-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import ExportExcelButton from '@/components/ExportExcelButton';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -445,16 +446,55 @@ export default function CompliancePage() {
                             จัดการรายการใบอนุญาตและเอกสาร Compliance ทั้งหมด
                         </Typography>
                     </Box>
-                    {canEdit && (
-                        <Button
-                            variant="contained"
-                            startIcon={<AddCircle variant="Bold" />}
-                            onClick={() => router.push('/compliance/create')}
-                            sx={{ boxShadow: '0 8px 20px -8px rgba(99, 102, 241, 0.6)' }}
-                        >
-                            สร้างเอกสารใหม่
-                        </Button>
-                    )}
+                    <Stack direction="row" spacing={2}>
+                        <ExportExcelButton
+                            data={filteredCompliances.map(item => ({
+                                ...item,
+                                allow_datetime: item.allow_datetime ? dayjs(item.allow_datetime).format('DD/MM/YYYY') : '-',
+                                expire_datetime: item.expire_datetime ? dayjs(item.expire_datetime).format('DD/MM/YYYY') : '-',
+                                warning_datetime: item.warning_datetime ? dayjs(item.warning_datetime).format('DD/MM/YYYY') : '-',
+                                file_link: item.file ? {
+                                    text: item.file,
+                                    link: `${window.location.origin}/api/uploads/${encodeURIComponent(item.file)}`
+                                } : '-'
+                            }))}
+                            fileName={`Compliance_Report_${dayjs().format('YYYYMMDD')}`}
+                            headers={{
+                                'id': 'ID',
+                                'cat_name': 'รหัสหมวดหมู่',
+                                'category_description': 'ชื่อหมวดหมู่',
+                                'license': 'ชื่อใบอนุญาต',
+                                'license_no': 'เลขที่ใบอนุญาต',
+                                'allow_datetime': 'วันที่อนุญาต',
+                                'expire_datetime': 'วันที่หมดอายุ',
+                                'warning_datetime': 'วันเตือนต่ออายุ',
+                                'status': 'สถานะการทำงาน',
+                                'plan': 'แบบ (Plan)',
+                                'factory': 'โรงงาน',
+                                'responsible_person': 'ผู้รับผิดชอบ',
+                                'document_preparer': 'ผู้จัดเตรียมเอกสาร',
+                                'document_receive': 'เอกสารที่ได้รับ',
+                                'document_state': 'เอกสารอยู่ที่',
+                                'department': 'หน่วยงาน',
+                                'objective': 'วัตถุประสงค์',
+                                'remark': 'หมายเหตุ',
+                                'file_link': 'ไฟล์แนบ'
+                            }}
+                            label="ส่งออก Excel"
+                            variant="outlined"
+                            color="success"
+                        />
+                        {canEdit && (
+                            <Button
+                                variant="contained"
+                                startIcon={<AddCircle variant="Bold" />}
+                                onClick={() => router.push('/compliance/create')}
+                                sx={{ boxShadow: '0 8px 20px -8px rgba(99, 102, 241, 0.6)' }}
+                            >
+                                สร้างเอกสารใหม่
+                            </Button>
+                        )}
+                    </Stack>
                 </Stack>
 
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
