@@ -258,10 +258,8 @@ function ReportContent({ data }: { data: ReportData }) {
                         <th style={{ ...thStyle, minWidth: '150px' }}>ทะเบียน/ใบอนุญาต</th>
                         <th style={{ ...thStyle, minWidth: '100px' }}>สถานะการติดตาม</th>
                         <th style={{ ...thStyle, minWidth: '100px' }}>วันที่คาดว่า<br />จะแล้วเสร็จ</th>
-                        <th style={{ ...thStyle, minWidth: '90px' }}>วันครบกำหนด</th>
                         <th style={thStyle}>ความเร่งด่วน</th>
                         <th style={thStyle}>ผู้รับผิดชอบ</th>
-                        <th style={thStyle}>ผู้จัดเตรียมเอกสาร</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -280,13 +278,9 @@ function ReportContent({ data }: { data: ReportData }) {
                                         {item.expected_datetime || '-'}
                                     </td>
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                        {item.expire_datetime ? dayjs(item.expire_datetime).format('D MMM BBBB') : '-'}
-                                    </td>
-                                    <td style={{ ...tdStyle, textAlign: 'center' }}>
                                         {renderUrgency(item.urgencyLevel)}
                                     </td>
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>{item.responsible_person || '-'}</td>
-                                    <td style={{ ...tdStyle, textAlign: 'center' }}>{item.document_preparer || '-'}</td>
                                 </tr>
                             );
                         });
@@ -294,7 +288,7 @@ function ReportContent({ data }: { data: ReportData }) {
                         return [
                             <tr key={`cat-${key}`}>
                                 <td
-                                    colSpan={11}
+                                    colSpan={9}
                                     style={{
                                         ...tdStyle,
                                         backgroundColor: '#f0f0f0',
