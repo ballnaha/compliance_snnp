@@ -257,7 +257,7 @@ function ReportContent({ data }: { data: ReportData }) {
                         <th style={thStyle}>โรงงาน</th>
                         <th style={{ ...thStyle, minWidth: '150px' }}>ทะเบียน/ใบอนุญาต</th>
                         <th style={{ ...thStyle, minWidth: '100px' }}>สถานะการติดตาม</th>
-                        <th style={{ ...thStyle, minWidth: '100px' }}>วันที่คาดว่า<br />จะแล้วเสร็จ</th>
+                        <th style={{ ...thStyle, minWidth: '100px' }}>วันครบกำหนด</th>
                         <th style={thStyle}>ความเร่งด่วน</th>
                         <th style={thStyle}>ผู้รับผิดชอบ</th>
                     </tr>
@@ -275,7 +275,7 @@ function ReportContent({ data }: { data: ReportData }) {
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>{item.license_no || '-'}</td>
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>{item.remark || '-'}</td>
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                        {item.expected_datetime || '-'}
+                                        {item.expire_datetime ? dayjs(item.expire_datetime).format('D MMM BBBB') : '-'}
                                     </td>
                                     <td style={{ ...tdStyle, textAlign: 'center' }}>
                                         {renderUrgency(item.urgencyLevel)}
