@@ -102,6 +102,8 @@ export default function CompliancePage() {
     const [categories, setCategories] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [planSearch, setPlanSearch] = useState<string>('');
+    const [selectedFactory, setSelectedFactory] = useState<string>('');
+    const [factories, setFactories] = useState<string[]>([]);
 
     // Delete Confirmation
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -165,6 +167,10 @@ export default function CompliancePage() {
             if (res.ok) {
                 const data = await res.json();
                 setCompliances(data);
+                
+                // Extract unique factories
+                const uniqueFactories = Array.from(new Set(data.map((item: any) => item.factory).filter(Boolean))) as string[];
+                setFactories(uniqueFactories.sort());
             }
         } catch (error) {
             console.error(error);
@@ -192,6 +198,7 @@ export default function CompliancePage() {
             item.plan?.toLowerCase().includes(search.toLowerCase());
         const matchesCategory = selectedCategory ? item.cat_folder === selectedCategory : true;
         const matchesPlan = planSearch ? item.plan?.toLowerCase().includes(planSearch.toLowerCase()) : true;
+        const matchesFactory = selectedFactory ? item.factory === selectedFactory : true;
 
         let matchesStatus = true;
         const isInactive = item.inactive === 'on';
@@ -201,7 +208,7 @@ export default function CompliancePage() {
             matchesStatus = isInactive;
         }
 
-        return matchesSearch && matchesCategory && matchesPlan && matchesStatus;
+        return matchesSearch && matchesCategory && matchesPlan && matchesFactory && matchesStatus;
     });
 
     const handleChangePage = (event: unknown, newPage: number) => {
@@ -523,6 +530,24 @@ export default function CompliancePage() {
                                 {categories.map((cat) => (
                                     <MenuItem key={cat.id} value={cat.cat_folder}>
                                         {cat.name} {cat.description}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ minWidth: 200 }}>
+                            <InputLabel id="factory-filter-label">โรงงาน (Factory)</InputLabel>
+                            <Select
+                                labelId="factory-filter-label"
+                                value={selectedFactory}
+                                label="โรงงาน (Factory)"
+                                onChange={(e) => setSelectedFactory(e.target.value)}
+                            >
+                                <MenuItem value="">
+                                    <em>ทั้งหมด (All)</em>
+                                </MenuItem>
+                                {factories.map((factory) => (
+                                    <MenuItem key={factory} value={factory}>
+                                        {factory}
                                     </MenuItem>
                                 ))}
                             </Select>
