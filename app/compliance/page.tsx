@@ -101,6 +101,7 @@ export default function CompliancePage() {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [categories, setCategories] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string>('');
+    const [planSearch, setPlanSearch] = useState<string>('');
 
     // Delete Confirmation
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -187,8 +188,10 @@ export default function CompliancePage() {
     const filteredCompliances = compliances.filter(item => {
         const matchesSearch = item.license?.toLowerCase().includes(search.toLowerCase()) ||
             item.cat_name?.toLowerCase().includes(search.toLowerCase()) ||
-            item.license_no?.toLowerCase().includes(search.toLowerCase());
+            item.license_no?.toLowerCase().includes(search.toLowerCase()) ||
+            item.plan?.toLowerCase().includes(search.toLowerCase());
         const matchesCategory = selectedCategory ? item.cat_folder === selectedCategory : true;
+        const matchesPlan = planSearch ? item.plan?.toLowerCase().includes(planSearch.toLowerCase()) : true;
 
         let matchesStatus = true;
         const isInactive = item.inactive === 'on';
@@ -198,7 +201,7 @@ export default function CompliancePage() {
             matchesStatus = isInactive;
         }
 
-        return matchesSearch && matchesCategory && matchesStatus;
+        return matchesSearch && matchesCategory && matchesPlan && matchesStatus;
     });
 
     const handleChangePage = (event: unknown, newPage: number) => {
@@ -525,9 +528,19 @@ export default function CompliancePage() {
                             </Select>
                         </FormControl>
                         <TextField
+                            size="small"
+                            placeholder="ค้นหาตามแบบ (Plan)..."
+                            value={planSearch}
+                            onChange={(e) => setPlanSearch(e.target.value)}
+                            sx={{ minWidth: 200 }}
+                            InputProps={{
+                                sx: { borderRadius: 2 }
+                            }}
+                        />
+                        <TextField
                             fullWidth
                             size="small"
-                            placeholder="ค้นหาเอกสาร (ชื่อใบอนุญาต, หมวดหมู่, เลขที่ใบอนุญาต)..."
+                            placeholder="ค้นหาเอกสาร (ชื่อใบอนุญาต, หมวดหมู่, เลขที่ใบอนุญาต, แบบ)..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             InputProps={{
